@@ -1,0 +1,2 @@
+-- Sessions, profile, settings, hobbies tables
+-- TODO: implement

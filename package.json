@@ -1,0 +1,46 @@
+{
+  "name": "neuro-guard",
+  "version": "0.1.0",
+  "description": "Chrome/YouTube usage tracker with escalating break reminders",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "build": "tsc && vite build && tsc -p tsconfig.electron.json",
+    "dist": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "active-win": "^8.1.1",
+    "better-sqlite3": "^11.5.0",
+    "ps-list": "^8.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.0.0",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0",
+    "vite-plugin-electron": "^0.28.0",
+    "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.neuroguard.app",
+    "productName": "NEURO-GUARD",
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icons/icon.ico"
+    },
+    "nsis": {
+      "requestExecutionLevel": "requireAdministrator"
+    }
+  }
+}
