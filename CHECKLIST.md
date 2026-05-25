@@ -1,0 +1,89 @@
+# NEURO-GUARD — Чеклист реализации
+
+## ✅ Завершено
+
+### Фундамент
+- [x] Scaffold: Electron 32 + React 18 + Vite + TypeScript + TailwindCSS v4
+- [x] `db/schema.sql` — таблицы: sessions, profile, settings, hobbies, onboarding_qa
+- [x] `db/profile.ts` — CRUD для всех таблиц (getSetting, saveProfile, addHobby, getSessions и др.)
+- [x] Zustand store (`appStore.ts`) — session, profile, view, suggestion
+- [x] Типы (`src/types/`) — SessionData, ProfileData, HobbyData, ElectronAPI
+
+### Electron main process
+- [x] `electron/timer.ts` — счётчик сессии, пороги 30/45/60 мин, computeStage, resetSession
+- [x] `electron/watcher.ts` — polling active-win каждые 5s, Chrome/YouTube детект по title
+- [x] `electron/escalation.ts` — handleStageChange (Stage 1/2/3, one-shot per session)
+- [x] `electron/hosts.ts` — blockYoutube / unblockYoutube / scheduleUnblock через hosts-файл
+- [x] `electron/main.ts` — BrowserWindow, overlayWindow, Tray, IPC-роутинг
+- [x] `electron/preload.ts` — contextBridge с полным API
+
+### IPC (все каналы)
+- [x] get-session / reset-session
+- [x] show-overlay / hide-overlay
+- [x] kill-chrome
+- [x] **block-youtube** (баг исправлен — handler добавлен)
+- [x] open-external / send-notification
+- [x] get-setting / set-setting
+- [x] get-profile / save-profile
+- [x] add-hobby / save-qa
+- [x] get-sessions
+
+### UI компоненты
+- [x] `App.tsx` — роутинг view, проверка onboarding_done на старте
+- [x] `Dashboard.tsx` — главный экран, таймер, статус Chrome/YT, кнопки навигации
+- [x] `Overlay.tsx` — Stage 2/3, countdown 90s, кнопки Kill Chrome / Block YouTube
+- [x] `Onboarding.tsx` — 4 шага: API key → загрузка вопросов → Q&A → анализ → результат
+- [x] `Profile.tsx` — отображение типа профиля и summary
+- [x] `Stats.tsx` — карточки итогов, bar-chart 7 дней (Chrome + YouTube), таблица сессий
+
+### Хуки и стили
+- [x] `useGemini.ts` — generateOnboardingQuestions, analyzeProfile, getSuggestion
+- [x] `synthwave.css` — переменные темы, анимации, `.sw-input`, `.sw-spinner`
+- [x] `assets/icons/tray.png` — 32×32 RGBA, щит + «N», synthwave цвета
+
+---
+
+## ❌ Осталось сделать
+
+### Критично (без этого app не работает корректно)
+
+- [x] **Session persistence** — `flushSession` в watcher.ts: детект сброса по `elapsedMs === 0`,
+  `startSession()` при первом Chrome-тике, `endSession()` при сбросе и при `stopWatcher`.
+  Локально накапливаются `sessionYoutubeMs` и `sessionMaxStage`.
+
+- [x] **Profile в Zustand на старте** — App.tsx: `setProfile(profile)` после getProfile IPC.
+  Profile.tsx теперь получает данные после перезапуска приложения.
+
+- [x] **npm install + проверка сборки** — 524 пакетов, 2 TS-ошибки исправлены, сборка OK.
+
+### Средний приоритет
+
+- [ ] **Gemini suggestion в Stage 1** — сейчас `getHobbySuggestion()` возвращает просто
+  название хобби из БД. CLAUDE.md требует персонализированный совет через API.
+  Проблема: Gemini вызов из main process (нет браузерного контекста).
+  Решение: IPC `get-gemini-suggestion` → renderer делает вызов → возвращает текст в main.
+
+- [ ] **Profile.tsx — хобби-список** — сейчас показывает только type + summary.
+  Добавить список хобби (IPC get-hobbies + новый handler).
+
+- [ ] **Settings UI** — пороги Stage 1/2/3 и idleReset конфигурируемы по задумке,
+  но UI отсутствует. Нужен экран с input-ами и IPC `set-thresholds`.
+
+### Низкий приоритет
+
+- [ ] **electron-builder config** — проверить `package.json` секцию build:
+  appId, productName, win target (nsis), иконка, запрос прав администратора (requireAdministrator).
+
+- [ ] **Запуск от админа** — hosts-блокировка требует admin. Нужен manifest или
+  electron-builder `requestedExecutionLevel: requireAdministrator`.
+
+- [ ] **Тестирование Stage flow** — ручной прогон: Stage 0→1→2→3→kill/block.
+
+- [ ] **Production build + .exe** — `npm run dist` → installer для Windows.
+
+---
+
+## Следующий шаг
+
+**Session persistence** + **Profile в Zustand** — два критичных бага, без них
+статистика мертва и профиль не отображается после перезапуска.
