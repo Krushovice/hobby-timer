@@ -21,7 +21,7 @@ function progressPercent(elapsedMs: number, stage: number): number {
 }
 
 interface Props {
-  onNavigate: (view: 'stats' | 'profile' | 'onboarding') => void
+  onNavigate: (view: 'stats' | 'profile' | 'onboarding' | 'settings') => void
 }
 
 export default function Dashboard({ onNavigate }: Props) {
@@ -163,6 +163,7 @@ export default function Dashboard({ onNavigate }: Props) {
       >
         <NavBtn label="ПРОФИЛЬ" onClick={() => onNavigate('profile')} />
         <NavBtn label="СТАТИСТИКА" onClick={() => onNavigate('stats')} />
+        <NavBtn label="НАСТРОЙКИ" onClick={() => onNavigate('settings')} />
         <NavBtn label="ОНБОРДИНГ" onClick={() => onNavigate('onboarding')} />
       </div>
     </div>

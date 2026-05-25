@@ -5,7 +5,7 @@ export interface AppState {
   session: SessionData
   profile: ProfileData | null
   suggestion: string
-  view: 'dashboard' | 'overlay' | 'onboarding' | 'stats' | 'profile'
+  view: 'dashboard' | 'overlay' | 'onboarding' | 'stats' | 'profile' | 'settings'
 
   setSession: (s: SessionData) => void
   setProfile: (p: ProfileData) => void
