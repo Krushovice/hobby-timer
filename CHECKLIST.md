@@ -58,16 +58,14 @@
 
 ### Средний приоритет
 
-- [ ] **Gemini suggestion в Stage 1** — сейчас `getHobbySuggestion()` возвращает просто
-  название хобби из БД. CLAUDE.md требует персонализированный совет через API.
-  Проблема: Gemini вызов из main process (нет браузерного контекста).
-  Решение: IPC `get-gemini-suggestion` → renderer делает вызов → возвращает текст в main.
+- [x] **Gemini suggestion в Stage 1** — IPC request/response: main → renderer (get-gemini-suggestion)
+  → getSuggestion() через Gemini API → renderer → main (gemini-suggestion-result) → Notification.
+  Fallback 10s → raw hobby name. Бонус: resetEscalation() при reset/kill/block.
 
-- [ ] **Profile.tsx — хобби-список** — сейчас показывает только type + summary.
-  Добавить список хобби (IPC get-hobbies + новый handler).
+- [x] **Profile.tsx — хобби-список** — get-hobbies IPC + color-coded category badges.
 
-- [ ] **Settings UI** — пороги Stage 1/2/3 и idleReset конфигурируемы по задумке,
-  но UI отсутствует. Нужен экран с input-ами и IPC `set-thresholds`.
+- [x] **Settings UI** — Settings.tsx с +/- спиннерами для Stage 1/2/3 и idle-reset (минуты).
+  get-thresholds / set-thresholds IPC, значения персистятся в SQLite.
 
 ### Низкий приоритет
 
