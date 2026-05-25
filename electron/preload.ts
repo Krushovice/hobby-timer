@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addHobby: (name: string, category: string) => ipcRenderer.invoke('add-hobby', name, category),
   saveQA: (question: string, answer: string) => ipcRenderer.invoke('save-qa', question, answer),
   getSessions: (limit?: number) => ipcRenderer.invoke('get-sessions', limit),
+  getHobbies: () => ipcRenderer.invoke('get-hobbies'),
+  getThresholds: () => ipcRenderer.invoke('get-thresholds'),
+  setThresholds: (t: object) => ipcRenderer.invoke('set-thresholds', t),
 
   onSessionUpdate: (cb: (session: SessionData) => void) => {
     ipcRenderer.on('session-update', (_e, data) => cb(data))
@@ -25,6 +28,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetStage: (cb: (stage: number) => void) => {
     ipcRenderer.on('set-stage', (_e, stage) => cb(stage))
     return () => ipcRenderer.removeAllListeners('set-stage')
+  },
+  onGetGeminiSuggestion: (cb: (reqId: number, hobby: string) => void) => {
+    ipcRenderer.on('get-gemini-suggestion', (_e, reqId, hobby) => cb(reqId, hobby))
+    return () => ipcRenderer.removeAllListeners('get-gemini-suggestion')
+  },
+  sendGeminiSuggestion: (reqId: number, text: string) => {
+    ipcRenderer.send('gemini-suggestion-result', reqId, text)
   },
 })
 

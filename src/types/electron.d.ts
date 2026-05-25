@@ -1,4 +1,11 @@
-import type { SessionData } from './index'
+import type { SessionData, HobbyData } from './index'
+
+export interface ThresholdsData {
+  stage1: number
+  stage2: number
+  stage3: number
+  idleReset: number
+}
 
 interface ElectronAPI {
   getSession: () => Promise<SessionData>
@@ -19,8 +26,13 @@ interface ElectronAPI {
     id: number; started_at: number; ended_at: number | null
     duration_ms: number; max_stage: number; youtube_ms: number
   }>>
+  getHobbies: () => Promise<HobbyData[]>
+  getThresholds: () => Promise<ThresholdsData>
+  setThresholds: (t: Partial<ThresholdsData>) => Promise<void>
   onSessionUpdate: (cb: (session: SessionData) => void) => () => void
   onSetStage: (cb: (stage: number) => void) => () => void
+  onGetGeminiSuggestion: (cb: (reqId: number, hobby: string) => void) => () => void
+  sendGeminiSuggestion: (reqId: number, text: string) => void
 }
 
 declare global {

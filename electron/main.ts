@@ -1,16 +1,39 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, Notification } from 'electron'
 import path from 'path'
 import { startWatcher, stopWatcher } from './watcher'
-import { getSession, resetSession } from './timer'
-import { handleStageChange } from './escalation'
+import { getSession, resetSession, THRESHOLDS, updateThresholds } from './timer'
+import { handleStageChange, resetEscalation } from './escalation'
 import { scheduleUnblock } from './hosts'
-import { getSetting, setSetting, getProfile, saveProfile, addHobby, saveQA, getSessions } from '../db/profile'
+import { getSetting, setSetting, getProfile, saveProfile, addHobby, saveQA, getSessions, getHobbies } from '../db/profile'
 
 const isDev = process.env.NODE_ENV === 'development'
 
 let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let tray: Tray | null = null
+
+// Gemini suggestion request/response (main→renderer→main)
+const pendingSuggestions = new Map<number, (text: string) => void>()
+let suggestionReqId = 0
+
+function requestGeminiSuggestion(hobby: string): Promise<string> {
+  return new Promise((resolve) => {
+    const reqId = ++suggestionReqId
+    pendingSuggestions.set(reqId, resolve)
+    mainWindow?.webContents.send('get-gemini-suggestion', reqId, hobby)
+    setTimeout(() => {
+      if (pendingSuggestions.has(reqId)) {
+        pendingSuggestions.delete(reqId)
+        resolve(hobby) // fallback to raw hobby name
+      }
+    }, 10_000)
+  })
+}
+
+ipcMain.on('gemini-suggestion-result', (_e, reqId: number, text: string) => {
+  const cb = pendingSuggestions.get(reqId)
+  if (cb) { pendingSuggestions.delete(reqId); cb(text) }
+})
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -112,6 +135,7 @@ ipcMain.handle('get-session', () => getSession())
 
 ipcMain.handle('reset-session', () => {
   resetSession()
+  resetEscalation()
   broadcastSession()
 })
 
@@ -131,6 +155,7 @@ ipcMain.handle('kill-chrome', async () => {
   })
   destroyOverlayWindow()
   resetSession()
+  resetEscalation()
   broadcastSession()
 })
 
@@ -138,6 +163,7 @@ ipcMain.handle('block-youtube', (_e, minutes: number) => {
   scheduleUnblock(minutes)
   destroyOverlayWindow()
   resetSession()
+  resetEscalation()
   broadcastSession()
 })
 
@@ -148,6 +174,15 @@ ipcMain.handle('save-profile', (_e, type: string, summary: string) => saveProfil
 ipcMain.handle('add-hobby', (_e, name: string, category: string) => addHobby(name, category))
 ipcMain.handle('save-qa', (_e, question: string, answer: string) => saveQA(question, answer))
 ipcMain.handle('get-sessions', (_e, limit?: number) => getSessions(limit))
+ipcMain.handle('get-hobbies', () => getHobbies())
+ipcMain.handle('get-thresholds', () => ({ ...THRESHOLDS }))
+ipcMain.handle('set-thresholds', (_e, t: Partial<typeof THRESHOLDS>) => {
+  updateThresholds(t)
+  if (t.stage1)    setSetting('threshold_stage1',  String(t.stage1))
+  if (t.stage2)    setSetting('threshold_stage2',  String(t.stage2))
+  if (t.stage3)    setSetting('threshold_stage3',  String(t.stage3))
+  if (t.idleReset) setSetting('threshold_idle',    String(t.idleReset))
+})
 
 ipcMain.handle('open-external', (_e, url: string) => {
   shell.openExternal(url)
@@ -158,6 +193,20 @@ ipcMain.handle('send-notification', (_e, title: string, body: string) => {
 })
 
 app.whenReady().then(() => {
+  // Restore persisted thresholds
+  const saved = {
+    stage1:    getSetting('threshold_stage1'),
+    stage2:    getSetting('threshold_stage2'),
+    stage3:    getSetting('threshold_stage3'),
+    idleReset: getSetting('threshold_idle'),
+  }
+  updateThresholds({
+    ...(saved.stage1    && { stage1:    parseInt(saved.stage1) }),
+    ...(saved.stage2    && { stage2:    parseInt(saved.stage2) }),
+    ...(saved.stage3    && { stage3:    parseInt(saved.stage3) }),
+    ...(saved.idleReset && { idleReset: parseInt(saved.idleReset) }),
+  })
+
   createMainWindow()
   createTray()
 
@@ -165,10 +214,11 @@ app.whenReady().then(() => {
     mainWindow?.webContents.send('session-update', session)
 
     handleStageChange(session, {
-      onStage1: (suggestion) => {
+      onStage1: async (hobby) => {
+        const text = await requestGeminiSuggestion(hobby)
         new Notification({
           title: '⚠ НЕЙРО-ПЕРЕГРУЗКА',
-          body: suggestion,
+          body: text,
         }).show()
       },
       onStage2: () => {
