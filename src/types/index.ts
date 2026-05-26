@@ -20,3 +20,8 @@ export interface HobbyData {
 }
 
 export type ProfileType = 'ESCAPIST' | 'PROCRASTINATOR' | 'INFO-ADDICT' | 'DOPAMINE-SEEKER'
+
+export interface GameSession {
+  running: boolean
+  elapsedMs: number
+}
