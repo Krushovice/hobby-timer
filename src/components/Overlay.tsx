@@ -4,10 +4,47 @@ const COUNTDOWN_SEC = 90
 
 type Stage = 2 | 3
 
+const PROFILE_LABELS: Record<string, string> = {
+  ESCAPIST: 'ЭСКАПИСТ',
+  PROCRASTINATOR: 'ПРОКРАСТИНАТОР',
+  'INFO-ADDICT': 'ИНФО-ЗАВИСИМЫЙ',
+  'DOPAMINE-SEEKER': 'ОХОТНИК ЗА ДОФАМИНОМ',
+}
+
+const STAGE2_MESSAGES: Record<string, string> = {
+  ESCAPIST: 'Ты снова прячешься в экране.\nПора вернуться к реальности.',
+  PROCRASTINATOR: 'Снова откладываешь важное?\nChrome — не замена делу.',
+  'INFO-ADDICT': 'Информация без действия — просто шум.\nВремя сделать паузу.',
+  'DOPAMINE-SEEKER': 'Следующий ролик не даст тебе кайфа.\nЦикл нужно разорвать.',
+}
+
+const STAGE3_MESSAGES: Record<string, string> = {
+  ESCAPIST: 'Ты провёл в экране больше часа.\nПобег из реальности не решает проблем.',
+  PROCRASTINATOR: 'Час потрачен впустую.\nЗакрой Chrome и сделай один шаг.',
+  'INFO-ADDICT': 'Час потребления без создания.\nВыключи. Сейчас.',
+  'DOPAMINE-SEEKER': 'Ты ищешь кайф уже час.\nЕго здесь нет. Выходи.',
+}
+
+function getInitialStage(): Stage {
+  const hash = window.location.hash
+  return hash.endsWith('/3') ? 3 : 2
+}
+
 export default function Overlay() {
-  const [stage, setStage]       = useState<Stage>(2)
+  const [stage, setStage]       = useState<Stage>(getInitialStage)
   const [seconds, setSeconds]   = useState(COUNTDOWN_SEC)
   const [dismissed, setDismissed] = useState(false)
+  const [profileType, setProfileType] = useState<string | null>(null)
+  const [lastSuggestion, setLastSuggestion] = useState<string | null>(null)
+
+  useEffect(() => {
+    window.electronAPI?.getProfile().then((p) => {
+      if (p?.type) setProfileType(p.type)
+    })
+    window.electronAPI?.getLastSuggestion().then((s) => {
+      if (s) setLastSuggestion(s)
+    })
+  }, [])
 
   // Listen for stage changes from main process
   useEffect(() => {
@@ -74,17 +111,31 @@ export default function Overlay() {
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '11px',
-            letterSpacing: '0.25em',
-            marginBottom: '16px',
-            color: stage === 3 ? 'var(--accent-red)' : 'var(--sun-orange)',
-            textShadow: stage === 3 ? 'var(--glow-red)' : '0 0 8px #ff6600',
-          }}
-        >
-          {stage === 2 ? '⚠ НЕЙРОННАЯ ПЕРЕГРУЗКА' : '🔴 КРИТИЧЕСКИЙ УРОВЕНЬ'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '16px' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '12px',
+              letterSpacing: '0.25em',
+              color: stage === 3 ? 'var(--accent-red)' : 'var(--sun-orange)',
+              textShadow: stage === 3 ? 'var(--glow-red)' : '0 0 8px #ff6600',
+            }}
+          >
+            {stage === 2 ? '⚠ НЕЙРОННАЯ ПЕРЕГРУЗКА' : '🔴 КРИТИЧЕСКИЙ УРОВЕНЬ'}
+          </div>
+          {profileType && (
+            <div style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '9px',
+              letterSpacing: '0.15em',
+              color: 'rgba(255,255,255,0.5)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              padding: '2px 7px',
+              borderRadius: '2px',
+            }}>
+              {PROFILE_LABELS[profileType] ?? profileType}
+            </div>
+          )}
         </div>
 
         {/* Big text */}
@@ -92,16 +143,35 @@ export default function Overlay() {
           style={{
             fontFamily: 'var(--font-display)',
             fontWeight: 900,
-            fontSize: stage === 3 ? '22px' : '18px',
-            lineHeight: 1.4,
-            marginBottom: '20px',
+            fontSize: stage === 3 ? '20px' : '17px',
+            lineHeight: 1.5,
+            marginBottom: lastSuggestion ? '12px' : '20px',
             color: '#fff',
+            whiteSpace: 'pre-line',
           }}
         >
           {stage === 2
-            ? 'Ты провёл в Chrome\nбольше 45 минут'
-            : 'Ты провёл в Chrome\nбольше часа. Хватит.'}
+            ? (profileType && STAGE2_MESSAGES[profileType]) ?? 'Ты провёл в Chrome\nбольше 45 минут'
+            : (profileType && STAGE3_MESSAGES[profileType]) ?? 'Ты провёл в Chrome\nбольше часа. Хватит.'}
         </div>
+
+        {/* Last Gemini suggestion */}
+        {lastSuggestion && (
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '13px',
+            color: 'var(--accent-yellow)',
+            textShadow: 'var(--glow-yellow)',
+            marginBottom: '16px',
+            padding: '8px 12px',
+            background: 'rgba(255,204,0,0.08)',
+            borderLeft: '2px solid var(--accent-yellow)',
+            textAlign: 'left',
+            lineHeight: 1.5,
+          }}>
+            {lastSuggestion}
+          </div>
+        )}
 
         {/* Countdown (Stage 2) */}
         {stage === 2 && (

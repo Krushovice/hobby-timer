@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
+  windowClose: () => ipcRenderer.invoke('window-close'),
+  getLastSuggestion: () => ipcRenderer.invoke('get-last-suggestion'),
+
   getSession: () => ipcRenderer.invoke('get-session'),
   resetSession: () => ipcRenderer.invoke('reset-session'),
   showOverlay: (stage: number) => ipcRenderer.invoke('show-overlay', stage),
@@ -20,6 +24,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getHobbies: () => ipcRenderer.invoke('get-hobbies'),
   getThresholds: () => ipcRenderer.invoke('get-thresholds'),
   setThresholds: (t: object) => ipcRenderer.invoke('set-thresholds', t),
+
+  startGameTimer: () => ipcRenderer.invoke('start-game-timer'),
+  stopGameTimer: () => ipcRenderer.invoke('stop-game-timer'),
+  getGameSession: () => ipcRenderer.invoke('get-game-session'),
+  onGameTimerUpdate: (cb: (session: { running: boolean; elapsedMs: number }) => void) => {
+    ipcRenderer.on('game-timer-update', (_e, data) => cb(data))
+    return () => ipcRenderer.removeAllListeners('game-timer-update')
+  },
 
   onSessionUpdate: (cb: (session: SessionData) => void) => {
     ipcRenderer.on('session-update', (_e, data) => cb(data))

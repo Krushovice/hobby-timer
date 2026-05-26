@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { useAppStore } from '../store/appStore'
+import type { GameSession } from '../types'
 
 const STAGE_LABELS = ['МОНИТОРИНГ', 'ПРЕДУПРЕЖДЕНИЕ', 'ТРЕВОГА', 'КРИТИЧНО']
 const STAGE_BADGE  = ['stage-badge-0', 'stage-badge-1', 'stage-badge-2', 'stage-badge-3']
@@ -28,6 +30,14 @@ export default function Dashboard({ onNavigate }: Props) {
   const { session, suggestion } = useAppStore()
   const { elapsedMs, isChrome, isYoutube, stage, lastSite } = session
 
+  const [gameSession, setGameSession] = useState<GameSession>({ running: false, elapsedMs: 0 })
+
+  useEffect(() => {
+    window.electronAPI?.getGameSession().then(setGameSession)
+    const unsub = window.electronAPI?.onGameTimerUpdate(setGameSession)
+    return unsub
+  }, [])
+
   const pct = progressPercent(elapsedMs, stage)
 
   return (
@@ -56,8 +66,8 @@ export default function Dashboard({ onNavigate }: Props) {
           ◈ NEURO-GUARD
         </span>
         <div className="no-drag" style={{ display: 'flex', gap: '6px' }}>
-          <WinBtn onClick={() => {}} color="#ffcc00" title="Свернуть" symbol="─" />
-          <WinBtn onClick={() => window.electronAPI?.killChrome()} color="#ff2244" title="Выход" symbol="×" />
+          <WinBtn onClick={() => window.electronAPI?.windowMinimize()} color="#ffcc00" title="Свернуть" symbol="─" />
+          <WinBtn onClick={() => window.electronAPI?.windowClose()} color="#ff2244" title="Скрыть в трей" symbol="×" />
         </div>
       </div>
 
@@ -67,7 +77,7 @@ export default function Dashboard({ onNavigate }: Props) {
         {/* Timer block */}
         <div className="sw-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em' }}>
               CHROME АКТИВЕН
             </span>
             <span className={`stage-badge ${STAGE_BADGE[stage]}`}>
@@ -132,14 +142,83 @@ export default function Dashboard({ onNavigate }: Props) {
               borderColor: 'rgba(255, 204, 0, 0.3)',
             }}
           >
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '9px', letterSpacing: '0.15em', color: 'var(--accent-yellow)', marginBottom: '6px' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '0.15em', color: 'var(--accent-yellow)', marginBottom: '6px', textShadow: 'var(--glow-yellow)' }}>
               ◈ НЕЙРО-СОВЕТ
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.9)', lineHeight: 1.5 }}>
               {suggestion}
             </div>
           </div>
         )}
+
+        {/* Game timer */}
+        <div
+          className="sw-panel no-drag"
+          style={{
+            padding: '14px 16px',
+            borderColor: gameSession.running ? 'rgba(255,0,255,0.4)' : 'rgba(255,255,255,0.08)',
+            transition: 'border-color 0.3s',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: gameSession.running ? '10px' : '0' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '10px', letterSpacing: '0.15em', color: gameSession.running ? 'var(--accent-magenta)' : 'rgba(255,255,255,0.35)', textShadow: gameSession.running ? 'var(--glow-magenta)' : 'none' }}>
+              🎮 ИГРОВОЙ РЕЖИМ
+            </span>
+            {gameSession.running && (
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '9px', letterSpacing: '0.1em', color: 'rgba(255,0,255,0.6)' }}>
+                АКТИВЕН
+              </span>
+            )}
+          </div>
+
+          {gameSession.running && (
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '32px',
+                fontWeight: 900,
+                letterSpacing: '0.05em',
+                lineHeight: 1,
+                marginBottom: '12px',
+                color: 'var(--accent-magenta)',
+                textShadow: 'var(--glow-magenta)',
+              }}
+            >
+              {formatTime(gameSession.elapsedMs)}
+            </div>
+          )}
+
+          <button
+            className="sw-btn no-drag"
+            style={{
+              width: '100%',
+              background: gameSession.running ? 'rgba(255,0,255,0.12)' : 'rgba(255,0,255,0.08)',
+              border: `1px solid ${gameSession.running ? 'rgba(255,0,255,0.5)' : 'rgba(255,0,255,0.25)'}`,
+              color: 'var(--accent-magenta)',
+              fontFamily: 'var(--font-display)',
+              fontSize: '11px',
+              letterSpacing: '0.15em',
+              padding: '8px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              textShadow: 'var(--glow-magenta)',
+              transition: 'all 0.2s',
+            }}
+            onClick={() => {
+              if (gameSession.running) {
+                window.electronAPI?.stopGameTimer()
+                setGameSession({ running: false, elapsedMs: 0 })
+              } else {
+                window.electronAPI?.startGameTimer()
+                setGameSession({ running: true, elapsedMs: 0 })
+              }
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,0,255,0.2)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = gameSession.running ? 'rgba(255,0,255,0.12)' : 'rgba(255,0,255,0.08)' }}
+          >
+            {gameSession.running ? '■ СТОП' : '▶ ЗАПУСТИТЬ'}
+          </button>
+        </div>
 
         {/* Reset button */}
         <button
@@ -222,13 +301,13 @@ function NavBtn({ label, onClick }: { label: string; onClick: () => void }) {
       style={{
         flex: 1,
         fontFamily: 'var(--font-display)',
-        fontSize: '8px',
+        fontSize: '11px',
         fontWeight: 700,
-        letterSpacing: '0.12em',
-        color: 'rgba(255,255,255,0.4)',
+        letterSpacing: '0.08em',
+        color: 'rgba(255,255,255,0.55)',
         background: 'transparent',
-        border: '1px solid rgba(255,255,255,0.08)',
-        padding: '6px 4px',
+        border: '1px solid rgba(255,255,255,0.12)',
+        padding: '7px 4px',
         borderRadius: '3px',
         transition: 'color 0.15s, border-color 0.15s',
       }}
@@ -237,8 +316,8 @@ function NavBtn({ label, onClick }: { label: string; onClick: () => void }) {
         e.currentTarget.style.borderColor = 'rgba(0,255,255,0.4)'
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.color = 'rgba(255,255,255,0.4)'
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
+        e.currentTarget.style.color = 'rgba(255,255,255,0.55)'
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
       }}
     >
       {label}

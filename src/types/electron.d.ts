@@ -1,4 +1,4 @@
-import type { SessionData, HobbyData } from './index'
+import type { SessionData, HobbyData, GameSession } from './index'
 
 export interface ThresholdsData {
   stage1: number
@@ -8,6 +8,10 @@ export interface ThresholdsData {
 }
 
 interface ElectronAPI {
+  windowMinimize: () => Promise<void>
+  windowClose: () => Promise<void>
+  getLastSuggestion: () => Promise<string>
+
   getSession: () => Promise<SessionData>
   resetSession: () => Promise<void>
   showOverlay: (stage: number) => Promise<void>
@@ -29,6 +33,10 @@ interface ElectronAPI {
   getHobbies: () => Promise<HobbyData[]>
   getThresholds: () => Promise<ThresholdsData>
   setThresholds: (t: Partial<ThresholdsData>) => Promise<void>
+  startGameTimer: () => Promise<void>
+  stopGameTimer: () => Promise<void>
+  getGameSession: () => Promise<GameSession>
+  onGameTimerUpdate: (cb: (session: GameSession) => void) => () => void
   onSessionUpdate: (cb: (session: SessionData) => void) => () => void
   onSetStage: (cb: (stage: number) => void) => () => void
   onGetGeminiSuggestion: (cb: (reqId: number, hobby: string) => void) => () => void

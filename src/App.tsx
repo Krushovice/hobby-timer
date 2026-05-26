@@ -10,10 +10,10 @@ import { getSuggestion } from './hooks/useGemini'
 import type { SessionData } from './types'
 
 export default function App() {
-  const { view, setView, setSession, setProfile, profile } = useAppStore()
+  const { view, setView, setSession, setProfile, setSuggestion, profile } = useAppStore()
 
   useEffect(() => {
-    if (window.location.hash === '#overlay') {
+    if (window.location.hash.startsWith('#overlay')) {
       setView('overlay')
       return
     }
@@ -44,11 +44,14 @@ export default function App() {
         const apiKey = await window.electronAPI?.getSetting('gemini_api_key')
         if (apiKey && profile?.type && profile?.summary) {
           const text = await getSuggestion(apiKey, profile.type, profile.summary, hobby)
+          setSuggestion(text)
           window.electronAPI?.sendGeminiSuggestion(reqId, text)
         } else {
+          setSuggestion(hobby)
           window.electronAPI?.sendGeminiSuggestion(reqId, hobby)
         }
       } catch {
+        setSuggestion(hobby)
         window.electronAPI?.sendGeminiSuggestion(reqId, hobby)
       }
     })
@@ -65,7 +68,7 @@ export default function App() {
       <div className="app-shell">
         {view === 'dashboard'  && <Dashboard onNavigate={setView} />}
         {view === 'overlay'    && <Overlay />}
-        {view === 'onboarding' && <Onboarding onDone={() => setView('dashboard')} />}
+        {view === 'onboarding' && <Onboarding onDone={() => setView('dashboard')} onSkip={() => setView('dashboard')} />}
         {view === 'stats'      && <Stats onBack={() => setView('dashboard')} />}
         {view === 'profile'    && <Profile onBack={() => setView('dashboard')} />}
         {view === 'settings'   && <Settings onBack={() => setView('dashboard')} />}

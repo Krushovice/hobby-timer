@@ -2,6 +2,7 @@ import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, Notificati
 import path from 'path'
 import { startWatcher, stopWatcher } from './watcher'
 import { getSession, resetSession, THRESHOLDS, updateThresholds } from './timer'
+import { startGameTimer, stopGameTimer, getGameSession, checkGameNotification } from './gameTimer'
 import { handleStageChange, resetEscalation } from './escalation'
 import { scheduleUnblock } from './hosts'
 import { getSetting, setSetting, getProfile, saveProfile, addHobby, saveQA, getSessions, getHobbies } from '../db/profile'
@@ -15,6 +16,7 @@ let tray: Tray | null = null
 // Gemini suggestion request/response (main→renderer→main)
 const pendingSuggestions = new Map<number, (text: string) => void>()
 let suggestionReqId = 0
+let lastSuggestionText = ''
 
 function requestGeminiSuggestion(hobby: string): Promise<string> {
   return new Promise((resolve) => {
@@ -32,7 +34,11 @@ function requestGeminiSuggestion(hobby: string): Promise<string> {
 
 ipcMain.on('gemini-suggestion-result', (_e, reqId: number, text: string) => {
   const cb = pendingSuggestions.get(reqId)
-  if (cb) { pendingSuggestions.delete(reqId); cb(text) }
+  if (cb) {
+    pendingSuggestions.delete(reqId)
+    lastSuggestionText = text
+    cb(text)
+  }
 })
 
 function createMainWindow() {
@@ -56,13 +62,13 @@ function createMainWindow() {
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
 
   mainWindow.on('closed', () => { mainWindow = null })
 }
 
-function createOverlayWindow() {
+function createOverlayWindow(initialStage: 2 | 3 = 2) {
   if (overlayWindow) return
 
   overlayWindow = new BrowserWindow({
@@ -79,9 +85,10 @@ function createOverlayWindow() {
     },
   })
 
+  const hash = `#overlay/${initialStage}`
   const url = isDev
-    ? 'http://localhost:5173/#overlay'
-    : `file://${path.join(__dirname, '../dist/index.html')}#overlay`
+    ? `http://localhost:5173/${hash}`
+    : `file://${path.join(__dirname, '../../dist/index.html')}${hash}`
 
   overlayWindow.loadURL(url)
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
@@ -98,10 +105,10 @@ function destroyOverlayWindow() {
 
 function createTray() {
   const icon = nativeImage.createFromPath(
-    path.join(__dirname, '../assets/icons/tray.png')
+    path.join(__dirname, '../../assets/icons/tray.png')
   ).isEmpty()
     ? nativeImage.createEmpty()
-    : nativeImage.createFromPath(path.join(__dirname, '../assets/icons/tray.png'))
+    : nativeImage.createFromPath(path.join(__dirname, '../../assets/icons/tray.png'))
 
   tray = new Tray(icon)
   tray.setToolTip('NEURO-GUARD')
@@ -167,6 +174,10 @@ ipcMain.handle('block-youtube', (_e, minutes: number) => {
   broadcastSession()
 })
 
+ipcMain.handle('window-minimize', () => mainWindow?.minimize())
+ipcMain.handle('window-close', () => mainWindow?.hide())
+ipcMain.handle('get-last-suggestion', () => lastSuggestionText)
+
 ipcMain.handle('get-setting', (_e, key: string) => getSetting(key))
 ipcMain.handle('set-setting', (_e, key: string, value: string) => setSetting(key, value))
 ipcMain.handle('get-profile', () => getProfile())
@@ -175,6 +186,10 @@ ipcMain.handle('add-hobby', (_e, name: string, category: string) => addHobby(nam
 ipcMain.handle('save-qa', (_e, question: string, answer: string) => saveQA(question, answer))
 ipcMain.handle('get-sessions', (_e, limit?: number) => getSessions(limit))
 ipcMain.handle('get-hobbies', () => getHobbies())
+ipcMain.handle('start-game-timer', () => startGameTimer())
+ipcMain.handle('stop-game-timer', () => stopGameTimer())
+ipcMain.handle('get-game-session', () => getGameSession())
+
 ipcMain.handle('get-thresholds', () => ({ ...THRESHOLDS }))
 ipcMain.handle('set-thresholds', (_e, t: Partial<typeof THRESHOLDS>) => {
   updateThresholds(t)
@@ -210,6 +225,14 @@ app.whenReady().then(() => {
   createMainWindow()
   createTray()
 
+  setInterval(() => {
+    mainWindow?.webContents.send('game-timer-update', getGameSession())
+    const msg = checkGameNotification()
+    if (msg) {
+      new Notification({ title: '🎮 ИГРОВОЙ ПЕРЕГРЕВ', body: msg }).show()
+    }
+  }, 5000)
+
   startWatcher((session) => {
     mainWindow?.webContents.send('session-update', session)
 
@@ -222,13 +245,14 @@ app.whenReady().then(() => {
         }).show()
       },
       onStage2: () => {
-        createOverlayWindow()
-        overlayWindow?.webContents.send('set-stage', 2)
+        createOverlayWindow(2)
       },
       onStage3: () => {
-        if (!overlayWindow) createOverlayWindow()
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        overlayWindow!.webContents.send('set-stage', 3)
+        if (overlayWindow) {
+          overlayWindow.webContents.send('set-stage', 3)
+        } else {
+          createOverlayWindow(3)
+        }
       },
     })
   })

@@ -18,9 +18,9 @@ const PROFILE_COLORS: Record<string, string> = {
   'DOPAMINE-SEEKER': 'var(--accent-red)',
 }
 
-interface Props { onDone: () => void }
+interface Props { onDone: () => void; onSkip?: () => void }
 
-export default function Onboarding({ onDone }: Props) {
+export default function Onboarding({ onDone, onSkip }: Props) {
   const [step, setStep] = useState<Step>('key')
   const [apiKey, setApiKey] = useState('')
   const [keyError, setKeyError] = useState('')
@@ -95,8 +95,19 @@ export default function Onboarding({ onDone }: Props) {
 
   return (
     <div style={{ padding: '20px', height: '100%', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', letterSpacing: '0.25em', color: 'var(--accent-magenta)', textShadow: 'var(--glow-magenta)' }}>
-        ИНИЦИАЛИЗАЦИЯ ПРОФИЛЯ
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '0.25em', color: 'var(--accent-magenta)', textShadow: 'var(--glow-magenta)' }}>
+          ИНИЦИАЛИЗАЦИЯ ПРОФИЛЯ
+        </div>
+        {onSkip && (
+          <button
+            className="sw-btn sw-btn-cyan no-drag"
+            style={{ fontSize: '10px', padding: '5px 10px', opacity: 0.6 }}
+            onClick={onSkip}
+          >
+            ← Назад
+          </button>
+        )}
       </div>
 
       {/* ── Step: API Key ── */}
