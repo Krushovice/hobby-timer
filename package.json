@@ -2,10 +2,11 @@
   "name": "neuro-guard",
   "version": "0.1.0",
   "description": "Chrome/YouTube usage tracker with escalating break reminders",
-  "main": "dist-electron/main.js",
+  "author": "Krushovice",
+  "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "build": "tsc && vite build && tsc -p tsconfig.electron.json",
+    "build": "tsc && vite build && tsc -p tsconfig.electron.json && node -e \"require('fs').copyFileSync('db/schema.sql','dist-electron/db/schema.sql')\"",
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
@@ -35,12 +36,27 @@
   "build": {
     "appId": "com.neuroguard.app",
     "productName": "NEURO-GUARD",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*",
+      "**/node_modules/active-win/**/*"
+    ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icons/icon.ico"
+      "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
-      "requestExecutionLevel": "requireAdministrator"
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true
     }
   }
 }
