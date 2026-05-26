@@ -69,11 +69,14 @@
 
 ### Низкий приоритет
 
-- [ ] **electron-builder config** — проверить `package.json` секцию build:
-  appId, productName, win target (nsis), иконка, запрос прав администратора (requireAdministrator).
+- [x] **electron-builder config** — `appId`, `productName`, `win.target: nsis`, `directories.output`,
+  `files`, `asarUnpack` (better-sqlite3, active-win). Иконка: нужен `assets/icons/icon.ico` (256x256),
+  пока не указан — electron-builder использует дефолт.
+  Баги исправлены: `main` → `dist-electron/electron/main.js`; `schema.sql` копируется в
+  `dist-electron/db/` в build-скрипте.
 
-- [ ] **Запуск от админа** — hosts-блокировка требует admin. Нужен manifest или
-  electron-builder `requestedExecutionLevel: requireAdministrator`.
+- [x] **Запуск от админа** — `nsis.requestExecutionLevel: requireAdministrator` в `package.json`.
+  Installer требует UAC при установке → процесс запускается с правами admin.
 
 - [ ] **Тестирование Stage flow** — ручной прогон: Stage 0→1→2→3→kill/block.
 
