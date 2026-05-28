@@ -18,6 +18,8 @@ interface ElectronAPI {
   hideOverlay: () => Promise<void>
   killChrome: () => Promise<void>
   blockYoutube: (minutes: number) => Promise<void>
+  getBlockRemaining: () => Promise<number>
+  markIgnoreUsed: () => Promise<void>
   openExternal: (url: string) => Promise<void>
   sendNotification: (title: string, body: string) => Promise<void>
   getSetting: (key: string) => Promise<string | null>

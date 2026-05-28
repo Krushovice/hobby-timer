@@ -1,17 +1,23 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, Notification } from 'electron'
 import path from 'path'
 import { startWatcher, stopWatcher } from './watcher'
-import { getSession, resetSession, THRESHOLDS, updateThresholds } from './timer'
+import { getSession, resetSession, markIgnoreUsed, THRESHOLDS, updateThresholds } from './timer'
 import { startGameTimer, stopGameTimer, getGameSession, checkGameNotification } from './gameTimer'
 import { handleStageChange, resetEscalation } from './escalation'
-import { scheduleUnblock } from './hosts'
+import { setBlock, isBlocked, blockRemainingMs } from './youtubeBlock'
 import { getSetting, setSetting, getProfile, saveProfile, addHobby, saveQA, getSessions, getHobbies } from '../db/profile'
+
+// Required for Windows toast notifications
+app.setAppUserModelId('com.neuroguard.app')
 
 const isDev = process.env.NODE_ENV === 'development'
 
 let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let tray: Tray | null = null
+let prevSessionMs = 0
+let lastBlockAlertMs = 0
+const BLOCK_ALERT_COOLDOWN = 60_000
 
 // Gemini suggestion request/response (main→renderer→main)
 const pendingSuggestions = new Map<number, (text: string) => void>()
@@ -167,12 +173,16 @@ ipcMain.handle('kill-chrome', async () => {
 })
 
 ipcMain.handle('block-youtube', (_e, minutes: number) => {
-  scheduleUnblock(minutes)
+  setBlock(minutes)
   destroyOverlayWindow()
   resetSession()
   resetEscalation()
   broadcastSession()
 })
+
+ipcMain.handle('get-block-remaining', () => blockRemainingMs())
+
+ipcMain.handle('mark-ignore-used', () => markIgnoreUsed())
 
 ipcMain.handle('window-minimize', () => mainWindow?.minimize())
 ipcMain.handle('window-close', () => mainWindow?.hide())
@@ -235,6 +245,22 @@ app.whenReady().then(() => {
 
   startWatcher((session) => {
     mainWindow?.webContents.send('session-update', session)
+
+    // Reset escalation when idle timer auto-resets the session
+    if (prevSessionMs > 0 && session.elapsedMs === 0) {
+      resetEscalation()
+    }
+    prevSessionMs = session.elapsedMs
+
+    // Soft-block: YouTube detected during block period → re-show Stage 3 overlay
+    if (session.isYoutube && isBlocked()) {
+      const now = Date.now()
+      if (now - lastBlockAlertMs > BLOCK_ALERT_COOLDOWN) {
+        lastBlockAlertMs = now
+        if (!overlayWindow) createOverlayWindow(3)
+        else overlayWindow.focus()
+      }
+    }
 
     handleStageChange(session, {
       onStage1: async (hobby) => {

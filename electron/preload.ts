@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hideOverlay: () => ipcRenderer.invoke('hide-overlay'),
   killChrome: () => ipcRenderer.invoke('kill-chrome'),
   blockYoutube: (minutes: number) => ipcRenderer.invoke('block-youtube', minutes),
+  getBlockRemaining: () => ipcRenderer.invoke('get-block-remaining'),
+  markIgnoreUsed: () => ipcRenderer.invoke('mark-ignore-used'),
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
   sendNotification: (title: string, body: string) => ipcRenderer.invoke('send-notification', title, body),
 

@@ -44,6 +44,10 @@ export default function Overlay() {
     window.electronAPI?.getLastSuggestion().then((s) => {
       if (s) setLastSuggestion(s)
     })
+    // Restore ignore state from session so it persists across overlay recreations
+    window.electronAPI?.getSession().then((s) => {
+      if (s?.ignoreUsed) setDismissed(true)
+    })
   }, [])
 
   // Listen for stage changes from main process
@@ -65,6 +69,7 @@ export default function Overlay() {
 
   function handleIgnore() {
     setDismissed(true)
+    window.electronAPI?.markIgnoreUsed()
     window.electronAPI?.hideOverlay()
   }
 
@@ -74,7 +79,7 @@ export default function Overlay() {
   }
 
   function handleBlockYoutube() {
-    if (!confirm('Заблокировать youtube.com на 30 минут через hosts-файл?')) return
+    if (!confirm('Заблокировать YouTube на 30 минут? При попытке открыть — оверлей вернётся.')) return
     window.electronAPI?.blockYoutube(30)
     window.electronAPI?.hideOverlay()
   }
