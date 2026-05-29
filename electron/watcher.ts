@@ -21,8 +21,12 @@ function flushSession(elapsedMs: number) {
 }
 
 function isChrome(title: string, owner: string): boolean {
-  return owner.toLowerCase().includes('chrome') ||
-    owner.toLowerCase().includes('chromium')
+  const o = owner.toLowerCase()
+  const t = title.toLowerCase()
+  // Match Google Chrome specifically — not Electron or other Chromium-based apps
+  return o === 'google chrome' ||
+    t.endsWith('- google chrome') ||
+    t.includes('- google chrome ')
 }
 
 function isYoutube(title: string): boolean {
